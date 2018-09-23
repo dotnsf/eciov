@@ -9,7 +9,15 @@
 		ul { list-style: none; }
 	</style>
 <script>
+var context = null;
 $(function(){
+  try{
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    context = new AudioContext();
+    console.log( context );
+  }catch( e ){
+    console.log( 'Web Audio API is not supported in this browser.' );
+  }
 });
 </script>
 <style>
@@ -19,6 +27,11 @@ $(function(){
 <body>
 	<input type="button" id="recordingstart" onclick="startRecording(this);" style="display: block;" value="録音スタート"/>
 	<input type="button" id="recordingstop" onclick="stopRecording(this);" style="display: none;" value="停止"/>
+
+        <ul style="display:block;">
+          <li><audio id="speech0" src="" controls autoplay></audio></li>
+          <li><audio id="speech1" src="" controls autoplay></audio></li>
+        </ul> 
 
 	<h3>Status</h3>
 	<pre id="log"></pre>
@@ -63,7 +76,16 @@ $(function(){
 		*/
 		//console.log( JSON.stringify( recorder, null, 2 ) );
 
+                recorder.exportWAV( function( wav0 ){
+                  $('#speech0').attr( 'src', wav0 );
+                });
+
 		recorder.getBuffer( function( buffer ){
+                  var source = context.createBufferSource();
+                  source.buffer = buffer;
+                  source.connect( context.destication );
+                  source.noteOn( 0 );
+
 			//console.log( buffer );   //. [ [ 0.1, 0.2, .. ], [ 0.1, 0.2, .. ] ]   : [ Float32Array, Float32Array ]
 
 			for( var i = 0; i < buffer.length; i ++ ){
