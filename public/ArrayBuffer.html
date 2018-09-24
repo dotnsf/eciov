@@ -1,0 +1,139 @@
+<html>
+<head>
+<title>ArrayBuffer</title>
+<script>
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+var context = new AudioContext();
+
+window.onload = function(){
+  if( ( document.readyState == 'interactive' ) || ( document.readyState == 'complete' ) ){
+    onDOMContentLoaded();
+  }else{
+    document.addEventListener( 'DOMContentLoaded', onDOMContentLoaded, true );
+  }
+  
+  function onDOMContentLoaded(){
+    function displayProperties( node, tableid, caption ){
+      var html = '<caption>' + caption + '</caption>';
+      
+      html += ( '<thead>'
+        + '<tr>'
+        + '<th scope="col">Property</th>'
+        + '<th scope="col">Value</th>'
+        + '<th scope="col">hasOwnProperty</th>'
+        + '</tr>'
+        + '</thead>'
+        + '<tbody>' );
+      
+      if( node instanceof ArrayBuffer ){
+        var key = 'byteLength';
+        
+        html += ( '<tr>'
+          + '<td>' + key + '</td>'
+          + '<td>' + node[key] + '</td>'
+          + '<td>' + node.hasOwnProperty(key) + '</td>'
+          + '</tr>' );
+        
+        var successCallback = function( audioBuffer ){
+          console.log( audioBuffer );
+        };
+        
+        var errorCallback = function( error ){
+          if( error instanceof Error ){
+            window.alert( error.message );
+          }else{
+            window.alert( 'Error: "decodeAudioData"');
+          }
+        };
+        
+        //. オーディオバッファインスタンス作成
+        context.decodeAudioData( node, successCallback, errorCallback );
+      }else{
+        for( var key in node ){
+          html += ( '<tr>'
+            + '<td>' + key + '</td>'
+            + '<td>' + node[key] + '</td>'
+            + '<td>' + node.hasOwnProperty(key) + '</td>'
+            + '</tr>' );
+        }
+      }
+      
+      html += '</tbody>';
+      
+      document.getElementById( tableid ).innerHTML = html;
+      document.getElementById( tableid ).parentNode.previousElementSibling.style.display = 'block';
+    };
+    
+    document.querySelector( '[type="file"]' ).addEventListener( 'change', function( event ){
+      var uploader = this;
+      
+      var file = event.target.files[0];
+      if( !( file instanceof File ) ){
+        window.alert( 'Error: Please upload file.' );
+      }else if( file.type.indexOf( 'audio' ) == -1 ){
+        window.alert( 'Error: Please upload audio file.' );
+      }else{
+        var reader = new FileReader();
+        reader.onprogress = function( event ){
+          if( event.lengthComputable && ( event.total > 0 ) ){
+            var rate = Math.floor( ( event.loaded / event.total ) * 100 );
+            document.getElementById( 'progress-file-upload-audio' ).textContext = rate + ' %';
+          }
+        };
+        
+        reader.onerror = function(){
+          window.alert( 'Error: FileReader(' + reader.error.code + ')' );
+          uploader.value = '';
+        };
+        
+        reader.onload = function(){
+          var arrayBuffer = reader.result;   //. ArrayBuffer（Web Audio API では Float32Array 型配列）
+          
+          displayProperties( file, 'file-properties', 'File (extends Blob)' );
+          displayProperties( arrayBuffer, 'arraybuffer-properties', 'ArrayBuffer' );
+          
+          document.getElementById( 'progress-file-upload-audio' ).textContext = file.name;
+          uploader.value = '';
+        };
+        
+        reader.readAsArrayBuffer( file );
+      }
+    }, false );
+  }
+}
+</script>
+</head>
+<body>
+  <div id="page">
+    <div>
+      <h2>オーディオファイルローダー</h2>
+      <input type="file" accept="audio/*"/> <span id="progress-file-upload-audio"></span>
+    </div>
+    <div>
+      <dl id="display-propertis-container">
+        <dt><a href="#file-properties">File (extends Blob)</a></dt>
+        <dd>
+          <table id="file-properties">
+            <caption>File (extends Blob)</caption>
+            <thead>
+              <tr><th scope="col">Property</th><th scope="col">Value</th><th scope="col">hasOwnProperty</th></tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </dd>
+        <dt><a href="#arraybuffer-properties">ArrayBuffer</a></dt>
+        <dd>
+          <table id="arraybuffer-properties">
+            <caption>ArrayBuffer</caption>
+            <thead>
+              <tr><th scope="col">Property</th><th scope="col">Value</th><th scope="col">hasOwnProperty</th></tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </dd>
+      </dl>
+  </div>
+</body>
+</html>
