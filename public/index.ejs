@@ -1,23 +1,14 @@
 <!DOCTYPE html>
-
 <html>
 <head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-	<title>ecioV</title>
-	<script src="//code.jquery.com/jquery-2.0.3.min.js"></script>
-	<style type='text/css'>
-		ul { list-style: none; }
-	</style>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>ecioV</title>
+<script src="//code.jquery.com/jquery-2.0.3.min.js"></script>
+<style type='text/css'>
+ul { list-style: none; }
+</style>
 <script>
-var context = null;
 $(function(){
-  try{
-    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    context = new AudioContext();
-    console.log( context );
-  }catch( e ){
-    console.log( 'Web Audio API is not supported in this browser.' );
-  }
 });
 </script>
 <style>
@@ -25,108 +16,122 @@ $(function(){
 
 </head>
 <body>
-	<input type="button" id="recordingstart" onclick="startRecording(this);" style="display: block;" value="録音スタート"/>
-	<input type="button" id="recordingstop" onclick="stopRecording(this);" style="display: none;" value="停止"/>
+<input type="button" id="recordingstart" onclick="startRecording(this);" style="display: block;" value="録音スタート"/>
+<input type="button" id="recordingstop" onclick="stopRecording(this);" style="display: none;" value="停止"/>
 
-        <ul style="display:block;">
-          <li><audio id="speech0" src="" controls autoplay></audio></li>
-          <li><audio id="speech1" src="" controls autoplay></audio></li>
-        </ul> 
+<h3>Status</h3>
+<pre id="log"></pre>
 
-	<h3>Status</h3>
-	<pre id="log"></pre>
+<script>
+function __log(e, data) {
+	log.innerHTML += e + " " + (data || '') + '\n';
+}
 
-	<script>
-	function __log(e, data) {
-		log.innerHTML += e + " " + (data || '') + '\n';
-	}
+var audio_context;
+var recorder;
 
-	var audio_context;
-	var recorder;
+function startUserMedia(stream){
+  var input = audio_context.createMediaStreamSource(stream);
+  __log('Media stream created.');
 
-	function startUserMedia(stream){
-		var input = audio_context.createMediaStreamSource(stream);
-		__log('Media stream created.');
+  recorder = new Recorder(input);
+  __log('Recorder initialised.');
+}
 
-		recorder = new Recorder(input);
-		__log('Recorder initialised.');
-	}
+function startRecording(button){
+  recorder && recorder.record();
+  $('#recordingstart').css( 'display', 'none' );
+  $('#recordingstop').css( 'display', 'block' );
+  __log('Recording...');
+}
 
-	function startRecording(button){
-		recorder && recorder.record();
-    $('#recordingstart').css( 'display', 'none' );
-    $('#recordingstop').css( 'display', 'block' );
-		__log('Recording...');
-	}
+function stopRecording(button){
+  recorder && recorder.stop();
+  $('#recordingstart').css( 'display', 'block' );
+  $('#recordingstop').css( 'display', 'none' );
+  __log('Stopped recording.');
 
-	function stopRecording(button){
-		recorder && recorder.stop();
-    $('#recordingstart').css( 'display', 'block' );
-    $('#recordingstop').css( 'display', 'none' );
-		__log('Stopped recording.');
+  sendRecordData();
+  recorder.clear();
+}
 
-		sendRecordData();
-		recorder.clear();
-	}
+function sendRecordData(){
+  console.log( 'sendRecordData()' );
+  recorder.getBuffer( function( buffer ){
+    console.log( buffer );   //. [ Float32Array, Float32Array ]
 
-	function sendRecordData(){
-		/*
-		recorder && recorder.exportWAV(function(blob) {
-		});
-		*/
-		//console.log( JSON.stringify( recorder, null, 2 ) );
+    if( buffer[0].length ){
+      var channel = 2;
+      var length = buffer[0].length;
+      var audioBuffer = audio_context.createBuffer( channel, length, audio_context.sampleRate );
+      var float32ArrayLs = audioBuffer.getChannelData(0);
+      var float32ArrayRs = audioBuffer.getChannelData(1);
+      float32ArrayLs.set( buffer[0] );
+      float32ArrayRs.set( buffer[1] );
+      console.log( audioBuffer );
+      var Ls = audioBuffer.getChannelData(0);
+      var Rs = audioBuffer.getChannelData(1);
+      console.log( Ls );
+      console.log( Rs );
 
-                recorder.exportWAV( function( wav0 ){
-                  $('#speech0').attr( 'src', wav0 );
-                });
+      var source = audio_context.createBufferSource();
+      source.buffer = audioBuffer;
+      source.loop = false;
+      source.loopStart = 0;
+      source.loopEnd = audioBuffer.duration;
+      source.playbackRate.value = 1.0;
+      source.connect( audio_context.destination );
 
-		recorder.getBuffer( function( buffer ){
-                  var source = context.createBufferSource();
-                  source.buffer = buffer;
-                  source.connect( context.destication );
-                  source.noteOn( 0 );
+      source.start( 0 );
+      source.onended = function( event ){
+        source.onended = null;
+        source.stop( 0 );
+        console.log( '"on ' + event.type + '" event' );
+      };
 
-			//console.log( buffer );   //. [ [ 0.1, 0.2, .. ], [ 0.1, 0.2, .. ] ]   : [ Float32Array, Float32Array ]
+      //console.log( buffer );   //. [ [ 0.1, 0.2, .. ], [ 0.1, 0.2, .. ] ]   : [ Float32Array, Float32Array ]
+    }else{
+      console.log( 'No buffer data found.' );
+    }
 
-			for( var i = 0; i < buffer.length; i ++ ){
-				console.log( buffer[i] );
-				buffer[i] = buffer[i].reverse();
-				console.log( buffer[i] );
-			}
+/*
+    for( var i = 0; i < buffer.length; i ++ ){
+      console.log( buffer[i] );
+      buffer[i] = buffer[i].reverse();
+      console.log( buffer[i] );
+    }
 
-			console.log( buffer );
-		});
-	}
+    console.log( buffer );
+*/
+  });
+}
 
-  function speechExamplification( button ){
-    var englishtext = $('#englishtext').html();
-    var voice = $('#voice').val();
-    $('#englishspeech').attr( 'src', './t2s?text=' + englishtext + '&voice=' + voice );
+function speechExamplification( button ){
+  var englishtext = $('#englishtext').html();
+  var voice = $('#voice').val();
+  $('#englishspeech').attr( 'src', './t2s?text=' + englishtext + '&voice=' + voice );
+}
+
+window.onload = function init(){
+  try{
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
+    window.URL = window.URL || window.webkitURL;
+
+    audio_context = new AudioContext();
+    __log('Audio context set up.');
+    __log('navigator.getUserMedia ' + (navigator.getUserMedia ? 'available.' : 'not present!'));
+  }catch (e){
+    alert('No web audio support in this browser!');
   }
 
-	window.onload = function init(){
-		try{
-			window.AudioContext = window.AudioContext || window.webkitAudioContext;
-			navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
-			window.URL = window.URL || window.webkitURL;
+  //navigator.mediaDevices.getUserMedia({audio: true}, startUserMedia, function(e) {
+  navigator.getUserMedia({audio: true}, startUserMedia, function(e) {
+    __log('No live audio input: ' + e);
+  });
+};
+</script>
 
-			audio_context = new AudioContext;
-			__log('Audio context set up.');
-			__log('navigator.getUserMedia ' + (navigator.getUserMedia ? 'available.' : 'not present!'));
-		}
-		catch (e){
-			alert('No web audio support in this browser!');
-		}
-
-		//navigator.mediaDevices.getUserMedia({audio: true}, startUserMedia, function(e) {
-		navigator.getUserMedia({audio: true}, startUserMedia, function(e) {
-			__log('No live audio input: ' + e);
-		});
-	};
-
-
-	</script>
-
-	<script src="./recorder.js"></script>
+<script src="./recorder.js"></script>
 </body>
 </html>
